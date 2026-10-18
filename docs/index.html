@@ -116,6 +116,19 @@
   .runs { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
   .runs li { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; background: var(--surface-2); padding: 8px 10px; border-radius: 8px; overflow-wrap: anywhere; }
   .runs .when, .runs .msg-line { grid-column: 2; color: var(--muted); }
+  .runs li[data-run] { cursor: pointer; }
+  .runs .chev { color: var(--muted); font-size: 11px; }
+  /* pasek postępu trwającego przebiegu; paski w tle przesuwają się, żeby było widać, że coś się dzieje */
+  .bar { grid-column: 1 / -1; position: relative; height: 18px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; margin-top: 6px; }
+  .bar div { height: 100%; border-radius: 999px; transition: width .6s ease;
+    background: repeating-linear-gradient(-45deg, var(--accent) 0 10px, color-mix(in srgb, var(--accent) 75%, var(--surface)) 10px 20px);
+    background-size: 28px 28px; animation: bar-move 1s linear infinite; }
+  .bar span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 600; color: var(--text); }
+  @keyframes bar-move { to { background-position: 28px 0; } }
+  @media (prefers-reduced-motion: reduce) { .bar div { animation: none; } }
+  .run-details { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0 2px; padding-top: 8px; border-top: 1px solid var(--border); }
+  .run-details dt { color: var(--muted); }
+  .run-details dd { margin: 0; }
   .badge { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); white-space: nowrap; align-self: start; }
   .badge.pending { color: var(--gold); }
   .badge.running { color: var(--accent); }
@@ -528,24 +541,77 @@ async function loadRuns() {
   $("#runner-info").className = "runner-info" + (alive ? "" : " off");
   $("#runner-info").textContent = !seen ? "Komputer jeszcze nie sprawdzał kolejki."
     : alive ? `Komputer sprawdził kolejkę ${ago(seen)}.`
-    : `Komputer nie odpowiada od ${ago(seen).replace(" temu", "")} — prośba poczeka, aż się włączy.`;
+    : `Komputer nie sprawdzał kolejki od ${ago(seen).replace(" temu", "")} — wyłączony, uśpiony albo nie działa zadanie w Harmonogramie.`;
 
   const name = (id) => id == null ? "Wszystkie aktywne" : searches.find((s) => s.id === id)?.name ?? `Wyszukiwanie #${id}`;
   $("#runs").innerHTML = runs.data.map((r) => `
-    <li>
+    <li data-run="${r.id}" class="${expandedRuns.has(r.id) ? "open" : ""}" title="Kliknij, żeby zobaczyć szczegóły">
       <span class="badge ${r.status}">${RUN_STATUS[r.status]}</span>
-      <span>${esc(name(r.search_id))}</span>
+      <span>${esc(name(r.search_id))} <span class="chev">${expandedRuns.has(r.id) ? "▴" : "▾"}</span></span>
       <span class="when">zlecone ${esc(ago(r.requested_at))}${r.finished_at ? ` · zakończone ${esc(ago(r.finished_at))}` : ""}</span>
       ${r.message ? `<span class="msg-line">${esc(r.message)}</span>` : ""}
+      ${r.status === "running" ? `<div class="bar" title="${r.progress ?? 0}%"><div style="width:${Math.max(3, r.progress ?? 0)}%"></div><span>${r.progress ?? 0}%</span></div>` : ""}
+      ${expandedRuns.has(r.id) ? runDetails(r, seen, alive) : ""}
     </li>`).join("");
 
-  // dopóki coś czeka lub trwa, odświeżaj co 15 s; po zakończeniu przeładuj wyniki
+  // dopóki coś czeka lub trwa, odświeżaj (w trakcie co 5 s — pasek postępu); po zakończeniu przeładuj wyniki
   const open = runs.data.filter((r) => r.status === "pending" || r.status === "running").length;
+  const running = runs.data.some((r) => r.status === "running");
   if (openRuns && !open) { toast("Przebieg zakończony"); loadWorks(); loadSearches(); }
   openRuns = open;
   clearTimeout(loadRuns.timer);
-  if (open && !$("#tab-searches").classList.contains("hidden")) loadRuns.timer = setTimeout(loadRuns, 15000);
+  if (open && !$("#tab-searches").classList.contains("hidden")) loadRuns.timer = setTimeout(loadRuns, running ? 5000 : 15000);
 }
+
+// ---- szczegóły prośby (rozwijane kliknięciem; zostają rozwinięte przy odświeżaniu co 15 s)
+const expandedRuns = new Set();
+const RUNNER_EVERY_MIN = 5; // co ile Harmonogram zadań odpala main.py queue
+const time = (iso) => new Date(iso).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+const dateTime = (iso) => new Date(iso).toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short" });
+function duration(from, to) {
+  const min = Math.round((new Date(to) - new Date(from)) / 60000);
+  return min < 1 ? "niecałą minutę" : `${min} min`;
+}
+
+function runDetails(r, seen, alive) {
+  const rows = [];
+  const scope = r.search_id == null
+    ? "Wszystkie aktywne wyszukiwania, potem ocena AI nowych fików."
+    : "Tylko to wyszukiwanie (nawet jeśli jest wyłączone), potem ocena AI nowych fików.";
+  rows.push(["Co", scope]);
+  rows.push(["Zlecone", `${dateTime(r.requested_at)}${r.requested_by ? ` przez ${r.requested_by}` : ""}`]);
+
+  if (r.status === "pending") {
+    let when;
+    if (!seen) when = "Komputer jeszcze nigdy nie sprawdzał kolejki — czy jest dodane zadanie w Harmonogramie?";
+    else if (!alive) when = `Komputer nie sprawdzał kolejki od ${ago(seen).replace(" temu", "")}. Jest wyłączony lub uśpiony, ` +
+      `albo nie działa zadanie „AO3 Fic Finder - kolejka” w Harmonogramie zadań. Prośba ruszy, gdy kolejka znów będzie sprawdzana.`;
+    else {
+      const next = new Date(new Date(seen).getTime() + RUNNER_EVERY_MIN * 60000);
+      when = next <= new Date()
+        ? "W każdej chwili — komputer zaraz znowu sprawdzi kolejkę."
+        : `Ok. ${time(next.toISOString())} — komputer sprawdza kolejkę co ${RUNNER_EVERY_MIN} min (ostatnio ${time(seen)}).`;
+    }
+    rows.push(["Start", when]);
+  } else if (r.status === "running") {
+    rows.push(["Trwa", `od ${time(r.started_at)} (${duration(r.started_at, new Date().toISOString())})`]);
+    rows.push(["Teraz", r.message || "Uruchamianie…"]);
+    rows.push(["", "Jedna strona AO3 to ok. 6–10 s, ocena AI 10 fików to kilka sekund. Strona odświeża się sama."]);
+  } else {
+    if (r.started_at) rows.push(["Start", dateTime(r.started_at)]);
+    if (r.finished_at && r.started_at) rows.push(["Trwało", duration(r.started_at, r.finished_at)]);
+    rows.push([r.status === "error" ? "Błąd" : "Wynik", r.message || "—"]);
+  }
+  return `<dl class="run-details">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`;
+}
+
+$("#runs").addEventListener("click", (e) => {
+  const li = e.target.closest("li[data-run]");
+  if (!li) return;
+  const id = +li.dataset.run;
+  expandedRuns.has(id) ? expandedRuns.delete(id) : expandedRuns.add(id);
+  loadRuns();
+});
 
 async function requestRun(searchId) {
   const { error } = await sb.from("run_requests").insert({ search_id: searchId });

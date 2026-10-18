@@ -77,7 +77,8 @@ ao3-fic-finder/
 │   ├── 02_searches_profile.sql    ← searches, profile, drop search_state      [DO URUCHOMIENIA]
 │   ├── 03_run_requests.sql        ← run_requests (kolejka ze strony), runner  [URUCHOMIONE]
 │   ├── 04_clear_run_requests.sql  ← strona może usuwać prośby (nie „running”) [DO URUCHOMIENIA]
-│   └── 05_taste_tags.sql          ← profile.liked_tags / disliked_tags        [DO URUCHOMIENIA]
+│   ├── 05_taste_tags.sql          ← profile.liked_tags / disliked_tags        [DO URUCHOMIENIA]
+│   └── 06_run_progress.sql        ← run_requests.progress (pasek postępu)     [DO URUCHOMIENIA]
 ├── scraper/
 │   ├── main.py                    ← CLI: scrape | rate | all | parse <plik>
 │   ├── ao3.py                     ← URL, klient HTTP, parser, filtr wstępny
@@ -232,6 +233,9 @@ Na fixture z `{draco, herm}` odrzuca 4 z 20 (Draco/Harry + Connor/Parvati, James
   4. Nic do zrobienia → koniec bez zapytań do AO3. Prośba „wszystkie” albo codzienny przebieg → wszystkie
      aktywne; inaczej tylko zamówione wyszukiwania (także wyłączone). Potem `rate()`.
   5. Prośby → `done` z „Nowych fików: N, ocenionych: M” albo `error` z błędami wyszukiwań.
+  W trakcie `progress(message, percent)` → `db.progress_requests()` zapisuje w prośbach `message` (co się dzieje)
+  i `progress` 0–100 (start 0–5, wyszukiwanie 5–70 proporcjonalnie do stron, ocena AI 70–100). Bez kolumny
+  `progress` (przed 06) zapisuje sam tekst; błąd zapisu postępu nigdy nie przerywa przebiegu.
 - `scrape(search_ids=None)` zwraca `{"new", "errors"}`, `rate()` zwraca liczbę ocenionych.
 
 ### 5.5 `.github/workflows/scrape.yml`
@@ -255,7 +259,11 @@ Na fixture z `{draco, herm}` odrzuca 4 z 20 (Draco/Harry + Connor/Parvati, James
   Panel „Szukaj teraz”: przycisk „Przeszukaj wszystkie aktywne” (insert `search_id = null`), przy każdym
   wyszukiwaniu „Szukaj teraz” (używa **zapisanych** ustawień, nie przeładowuje formularza), stan komputera
   z `runner.last_seen_at` (> 15 min = „nie odpowiada”), 5 ostatnich próśb; dopóki coś czeka lub trwa,
-  odświeżanie co 15 s, po zakończeniu przeładowanie fików i wyszukiwań. „Wyczyść kolejkę” usuwa wszystkie
+  odświeżanie co 15 s (co 5 s, gdy coś trwa), po zakończeniu przeładowanie fików i wyszukiwań.
+  Trwająca prośba ma animowany pasek postępu (`run_requests.progress`). Kliknięcie prośby rozwija szczegóły
+  (`runDetails`): zakres, kto i kiedy zlecił, przy „czeka” przewidywany start (`last_seen_at` + 5 min) albo
+  ostrzeżenie, że kolejka nie jest sprawdzana; przy „trwa” czas i bieżący krok; po końcu czas trwania i wynik.
+  „Wyczyść kolejkę” usuwa wszystkie
   prośby poza `running` (polityka DELETE z 04).
 - **Pobieranie fika**: na karcie linki EPUB / PDF → `https://archiveofourown.org/downloads/<id>/<id>.<format>`.
   AO3 ignoruje nazwę pliku i sam podaje tytuł (sprawdzone 2026-10-18). Pobiera przeglądarka czytelniczki,

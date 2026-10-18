@@ -11,6 +11,7 @@ Użycie:
 from __future__ import annotations
 
 import json
+import math
 import os
 import sys
 from datetime import date, datetime, timedelta, timezone
@@ -46,7 +47,15 @@ def get_db():
 
 # ---------------------------------------------------------------- scrape
 
-def scrape(search_ids: list[int] | None = None) -> dict:
+def _no_progress(_message: str, _percent: int | None = None):
+    pass
+
+
+# pasek postępu na stronie: start 0–5 %, wyszukiwanie 5–70 %, ocena AI 70–100 %
+SCRAPE_FROM, SCRAPE_TO = 5, 70
+
+
+def scrape(search_ids: list[int] | None = None, progress=_no_progress) -> dict:
     """Przechodzi aktywne wyszukiwania (albo tylko podane, także wyłączone).
     Zwraca {"new": liczba nowych fików, "errors": [opisy błędów]}."""
     from db import now_iso
@@ -56,19 +65,21 @@ def scrape(search_ids: list[int] | None = None) -> dict:
     print(f"Wyszukiwań do przejścia: {len(searches)}")
     # Chrome startuje dopiero przy pierwszej stronie i zamyka się po przebiegu
     with AO3Client(delay=float(env("AO3_DELAY_SECONDS", "6"))) as client:
-        return _scrape_searches(db, client, searches)
+        return _scrape_searches(db, client, searches, progress)
 
 
-def _scrape_searches(db, client: AO3Client, searches: list[dict]) -> dict:
+def _scrape_searches(db, client: AO3Client, searches: list[dict], progress) -> dict:
     from db import now_iso
 
     total_new = 0
     errors = []
-    for s in searches:
+    for si, s in enumerate(searches):
         print(f"\n== {s['name']} (od strony {s['last_page'] + 1}, max {s['max_pages_per_run']}) ==")
         page = s["last_page"]
+        progress(f"{s['name']}: pobieram stronę {page + 1} z AO3…",
+                 SCRAPE_FROM + (SCRAPE_TO - SCRAPE_FROM) * si // len(searches))
         try:
-            for _ in range(s["max_pages_per_run"]):
+            for done_pages in range(1, s["max_pages_per_run"] + 1):
                 page += 1
                 result = parse_search_page(client.get(build_search_url(s["params"], page)))
                 works = result["works"]
@@ -94,6 +105,12 @@ def _scrape_searches(db, client: AO3Client, searches: list[dict]) -> dict:
                 new = len(fresh)
                 total_new += new
                 print(f"  strona {page}: {len(works)} fików, {rejected} odrzuconych filtrem, {new} nowych")
+                # ile stron obejmie ten przebieg: do końca wyników, ale nie więcej niż limit
+                all_pages = math.ceil(result["total_found"] / 20) if result["total_found"] else page
+                planned = max(1, min(s["max_pages_per_run"], all_pages - s["last_page"]))
+                share = (si + min(1, done_pages / planned)) / len(searches)
+                progress(f"{s['name']}: przejrzana strona {page} z {all_pages}, nowych fików dotąd: {total_new}",
+                         round(SCRAPE_FROM + (SCRAPE_TO - SCRAPE_FROM) * share))
 
                 done = not result["has_next"] or not works
                 db.update_search(s["id"], last_page=0 if done else page,
@@ -118,7 +135,7 @@ def _scrape_searches(db, client: AO3Client, searches: list[dict]) -> dict:
 
 # ---------------------------------------------------------------- rate
 
-def rate() -> int:
+def rate(progress=_no_progress) -> int:
     """Ocenia nieocenione fiki; zwraca, ile oceniono."""
     from rate import Rater
 
@@ -134,6 +151,7 @@ def rate() -> int:
 
     rated = 0
     for i in range(0, len(works), batch_size):
+        progress(f"Ocena AI: {i}/{len(works)} fików", SCRAPE_TO + (100 - SCRAPE_TO) * i // len(works))
         batch = works[i:i + batch_size]
         try:
             ratings = rater.rate_batch(batch, taste, examples)
@@ -176,8 +194,19 @@ def queue():
     print(f"Prośby ze strony: {len(ids)}, codzienny przebieg: {'tak' if daily_due else 'nie'}")
 
     try:
-        result = scrape(search_ids)
-        rated = rate()
+        def progress(message: str, percent: int | None = None):
+            try:
+                db.progress_requests(ids, message, percent)
+            except Exception:  # noqa: BLE001 — np. przed 06_run_progress.sql: sam tekst bez paska
+                try:
+                    db.progress_requests(ids, message)
+                except Exception as e:  # noqa: BLE001 — postęp to tylko podgląd, nie przerywa przebiegu
+                    print(f"  (nie zapisano postępu: {e})")
+
+        progress("Uruchamiam przeglądarkę…", 2)
+        result = scrape(search_ids, progress)
+        progress(f"Wyszukiwanie skończone (nowych fików: {result['new']}), zaczynam ocenę AI…", SCRAPE_TO)
+        rated = rate(progress)
     except Exception as e:  # noqa: BLE001
         db.finish_requests(ids, "error", str(e))
         raise

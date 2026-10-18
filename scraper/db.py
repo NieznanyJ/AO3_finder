@@ -47,6 +47,15 @@ class Supabase:
                          json={"status": "running", "started_at": now_iso()},
                          prefer="return=representation")
 
+    def progress_requests(self, ids: list[int], message: str, percent: int | None = None):
+        """Postęp trwającego przebiegu — strona pokazuje go na żywo (tekst + pasek)."""
+        if ids:
+            fields = {"message": message[:500]}
+            if percent is not None:
+                fields["progress"] = max(0, min(100, percent))
+            self._req("PATCH", "run_requests", params={"id": f"in.({','.join(map(str, ids))})"},
+                      json=fields)
+
     def finish_requests(self, ids: list[int], status: str, message: str):
         if ids:
             self._req("PATCH", "run_requests", params={"id": f"in.({','.join(map(str, ids))})"},
