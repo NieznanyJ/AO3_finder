@@ -1,0 +1,29 @@
+name: AO3 rate
+
+# Pobieranie z AO3 działa tylko lokalnie (Chrome z oknem, patrz scraper/ao3.py) —
+# robi je Harmonogram zadań Windows: python scraper/main.py queue.
+# Tutaj zostaje ręczne przeliczenie ocen AI, np. po zmianie gustu, bez włączania komputera.
+on:
+  workflow_dispatch:        # przycisk "Run workflow" w zakładce Actions
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install requests beautifulsoup4 anthropic
+      - run: python scraper/main.py rate
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AI_MODEL: ${{ vars.AI_MODEL || 'claude-haiku-5-5' }}

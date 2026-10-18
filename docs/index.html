@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fffdf9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#211c16" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="noindex, nofollow">
+<title>Półka z fikami</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f1e9; --surface: #fffdf9; --surface-2: #efe7da; --text: #2a2420; --muted: #77695c;
+    --border: #e2d6c4; --accent: #7a2e3a; --accent-soft: #f3e1e3; --gold: #b8862b; --ok: #3f6b4e; --danger: #a33;
+    --shadow: 0 1px 2px rgba(60,40,20,.06), 0 4px 16px rgba(60,40,20,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17140f; --surface: #211c16; --surface-2: #2b241c; --text: #ece3d6; --muted: #a8998a;
+      --border: #3a3127; --accent: #d98a96; --accent-soft: #3a2328; --gold: #e0b45a; --ok: #8bc19c; --danger: #e77;
+      --shadow: 0 1px 2px rgba(0,0,0,.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 Inter, system-ui, sans-serif; }
+  h1, h2, h3 { font-family: Fraunces, Georgia, serif; font-weight: 600; margin: 0; }
+  a { color: var(--accent); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+  .hidden { display: none !important; }
+
+  /* nagłówek */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
+  header .wrap { display: flex; align-items: center; gap: 16px; height: 60px; }
+  header h1 { font-size: 22px; }
+  header h1 span { color: var(--accent); }
+  nav { display: flex; gap: 4px; margin-left: auto; }
+  nav button { background: none; border: 0; padding: 8px 12px; border-radius: 8px; cursor: pointer; color: var(--muted); font-weight: 500; }
+  nav button.active { background: var(--accent-soft); color: var(--accent); }
+  .logout { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer; color: var(--muted); }
+
+  /* elementy formularzy */
+  .btn { background: var(--accent); color: #fff; border: 0; padding: 9px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); font-weight: 500; }
+  .btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--border); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  input[type=text], input[type=password], input[type=number], input[type=url], select, textarea {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; width: 100%;
+  }
+  textarea { min-height: 280px; resize: vertical; line-height: 1.6; }
+  label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  label.field small { color: var(--muted); opacity: .8; }
+
+  /* logowanie */
+  #login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+  #login form { background: var(--surface); padding: 32px; border-radius: 16px; box-shadow: var(--shadow); width: 100%; max-width: 360px; display: grid; gap: 14px; }
+  #login h1 { font-size: 28px; text-align: center; }
+  #login p { margin: 0; color: var(--muted); font-size: 13px; text-align: center; }
+  .msg { font-size: 13px; padding: 8px 10px; border-radius: 8px; background: var(--accent-soft); }
+
+  /* filtry */
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 20px 0 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--border); background: var(--surface); padding: 5px 12px; border-radius: 999px; cursor: pointer; font-size: 13px; }
+  .chip.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .chip .n { opacity: .6; margin-left: 4px; }
+  .filters { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .filters label.check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .count { color: var(--muted); font-size: 13px; margin: 8px 0 12px; }
+
+  /* karty fików */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 12px; box-shadow: var(--shadow); display: grid; grid-template-columns: 56px 1fr; gap: 16px; }
+  .score { width: 56px; height: 56px; border-radius: 12px; display: grid; place-items: center; font: 700 24px Fraunces, serif; background: var(--surface-2); color: var(--muted); }
+  .score.s5 { background: var(--gold); color: #fff; }
+  .score.s4 { background: color-mix(in srgb, var(--gold) 55%, var(--surface)); color: var(--text); }
+  .score small { display: block; font: 500 10px Inter, sans-serif; margin-top: -14px; opacity: .8; }
+  .card h3 { font-size: 19px; line-height: 1.3; }
+  .card h3 a { color: var(--text); text-decoration: none; }
+  .card h3 a:hover { color: var(--accent); }
+  .meta { color: var(--muted); font-size: 13px; margin: 2px 0 10px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .reason { background: var(--accent-soft); border-radius: 8px; padding: 8px 12px; margin: 0 0 10px; font-size: 14px; }
+  .cats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .cat { background: var(--surface-2); padding: 2px 9px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+  details { margin-bottom: 8px; font-size: 14px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  details p { white-space: pre-line; margin: 8px 0 0; }
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .tag { font-size: 12px; color: var(--muted); border: 1px solid var(--border); padding: 1px 7px; border-radius: 5px; }
+  .tag.warn { color: var(--danger); }
+  .status { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .status button { border: 1px solid var(--border); background: transparent; padding: 5px 11px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .status button.on { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .status .dl { margin-left: auto; display: flex; gap: 6px; }
+  .status .dl a { border: 1px solid var(--border); padding: 5px 11px; border-radius: 8px; font-size: 13px; text-decoration: none; color: var(--muted); }
+  .status .dl a:hover { color: var(--accent); border-color: var(--accent); }
+  .empty { text-align: center; color: var(--muted); padding: 60px 0; }
+
+  /* wyszukiwania */
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin: 20px 0; box-shadow: var(--shadow); }
+  .panel h2 { font-size: 20px; margin-bottom: 4px; }
+  .panel .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .section-label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 8px; font-weight: 600; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 16px; }
+  .search-head { display: flex; align-items: center; gap: 10px; }
+  .search-head input[type=text] { font: 600 18px Fraunces, serif; border-color: transparent; background: transparent; padding-left: 0; }
+  .search-head input[type=text]:focus { border-color: var(--border); background: var(--surface); padding-left: 10px; }
+  .toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+  .state { font-size: 12px; color: var(--muted); background: var(--surface-2); padding: 8px 10px; border-radius: 8px; margin-top: 12px; }
+  .state .err { color: var(--danger); }
+  .paste { display: flex; gap: 8px; }
+
+  /* uruchamianie ze strony */
+  .runs { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+  .runs li { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; background: var(--surface-2); padding: 8px 10px; border-radius: 8px; overflow-wrap: anywhere; }
+  .runs .when, .runs .msg-line { grid-column: 2; color: var(--muted); }
+  .badge { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); white-space: nowrap; align-self: start; }
+  .badge.pending { color: var(--gold); }
+  .badge.running { color: var(--accent); }
+  .badge.done { color: var(--ok); }
+  .badge.error { color: var(--danger); }
+  .runner-info { font-size: 13px; color: var(--muted); }
+  .runner-info.off { color: var(--danger); }
+
+  /* tagi w guście */
+  .picked { display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; margin-bottom: 8px; }
+  .picked .empty-note { color: var(--muted); font-size: 13px; }
+  .pick { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; padding: 3px 4px 3px 10px; border-radius: 999px; overflow-wrap: anywhere; }
+  .pick button { border: 0; background: none; cursor: pointer; color: inherit; opacity: .7; font-size: 15px; line-height: 1; padding: 2px 6px; }
+  .pick.liked { background: color-mix(in srgb, var(--ok) 18%, var(--surface)); }
+  .pick.disliked { background: color-mix(in srgb, var(--danger) 16%, var(--surface)); }
+  .suggest { display: flex; flex-wrap: wrap; gap: 6px; max-height: 260px; overflow-y: auto; }
+  .sug { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 999px; font-size: 12.5px; background: var(--surface); overflow: hidden; }
+  .sug span { padding: 3px 4px 3px 10px; overflow-wrap: anywhere; }
+  .sug .n { color: var(--muted); padding-left: 0; }
+  .sug button { border: 0; border-left: 1px solid var(--border); background: none; cursor: pointer; padding: 4px 9px; font-size: 13px; }
+  .sug button.like { color: var(--ok); }
+  .sug button.dislike { color: var(--danger); }
+  .sug button:hover { background: var(--surface-2); }
+
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 10px; font-size: 14px; z-index: 10; }
+
+  /* długie tytuły, tagi i adresy w błędach nie mogą rozpychać strony */
+  .card h3, .meta, .reason, details p, .tag, .state { overflow-wrap: anywhere; }
+  main.wrap { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+
+  @media (max-width: 680px) {
+    body { font-size: 15px; }
+    /* 16px w polach = iOS nie przybliża strony przy kliknięciu */
+    input[type=text], input[type=password], input[type=number], input[type=url], select, textarea { font-size: 16px; padding: 10px 12px; }
+    .wrap { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+
+    /* nagłówek: tytuł + wyloguj w jednym rzędzie, zakładki pod spodem na całą szerokość */
+    header .wrap { height: auto; flex-wrap: wrap; padding-top: 8px; padding-bottom: 6px; gap: 6px 8px; }
+    header h1 { font-size: 19px; }
+    .logout { margin-left: auto; padding: 6px 10px; font-size: 13px; }
+    nav { margin-left: 0; order: 3; width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); }
+    nav button { padding: 9px 4px; text-align: center; }
+
+    /* chipy statusów przewijane w poziomie zamiast kilku rzędów */
+    .toolbar { margin: 12px 0 8px; }
+    .chips { flex-wrap: nowrap; overflow-x: auto; margin: 0 -12px; padding: 2px 12px 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip { white-space: nowrap; padding: 7px 13px; flex: none; }
+
+    .filters { grid-template-columns: 1fr 1fr; }
+    .filters #f-text, .filters #f-sort { grid-column: 1 / -1; }
+    .filters label.check { padding: 4px 0; }
+    .filters label.check input { width: 18px; height: 18px; }
+    .grid2 { grid-template-columns: 1fr; }
+    .grid3 { grid-template-columns: 1fr 1fr; }
+
+    /* karta: mała ocena obok tytułu, przyciski statusu jako duże pola do kciuka */
+    .card { grid-template-columns: 40px 1fr; gap: 12px; padding: 14px; border-radius: 12px; }
+    .score { width: 40px; height: 40px; font-size: 19px; border-radius: 10px; }
+    .card h3 { font-size: 17px; }
+    .meta { font-size: 12.5px; gap: 2px 10px; }
+    .reason { font-size: 13.5px; }
+    details summary { padding: 6px 0; }
+    .status { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-left: -52px; }
+    .status button { padding: 10px 6px; font-size: 14px; }
+    .status .dl { grid-column: 1 / -1; margin-left: 0; }
+    .status .dl a { flex: 1; text-align: center; padding: 10px 6px; font-size: 14px; }
+
+    /* wyszukiwania i gust */
+    .panel { padding: 16px 14px; margin: 14px 0; border-radius: 12px; }
+    .paste { flex-direction: column; }
+    .search-head { flex-wrap: wrap; }
+    .row .btn { flex: 1 1 calc(50% - 8px); text-align: center; padding: 11px 10px; }
+    .row .count { width: 100%; margin: 0; }
+    textarea { min-height: 50vh; }
+
+    .toast { bottom: calc(16px + env(safe-area-inset-bottom)); width: max-content; max-width: calc(100% - 32px); text-align: center; }
+    #login form { padding: 24px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ logowanie ============ -->
+<section id="login" class="hidden">
+  <form id="login-form">
+    <h1>Półka z fikami</h1>
+    <p>Zaloguj się, żeby zobaczyć listę.</p>
+    <label class="field">Login lub e-mail
+      <input type="text" id="login-user" autocomplete="username" required>
+    </label>
+    <label class="field">Hasło
+      <input type="password" id="login-pass" autocomplete="current-password">
+      <small>Z prawdziwym mailem możesz zostawić puste — przyjdzie link do logowania.</small>
+    </label>
+    <button class="btn" type="submit">Zaloguj</button>
+    <div id="login-msg" class="msg hidden"></div>
+  </form>
+</section>
+
+<!-- ============ aplikacja ============ -->
+<div id="app" class="hidden">
+  <header>
+    <div class="wrap">
+      <h1>Półka <span>z fikami</span></h1>
+      <nav>
+        <button data-tab="works" class="active">Fiki</button>
+        <button data-tab="searches">Wyszukiwania</button>
+        <button data-tab="taste">Gust</button>
+      </nav>
+      <button class="logout" id="logout" title="Wyloguj">Wyloguj</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- fiki -->
+    <section id="tab-works">
+      <div class="toolbar"><div class="chips" id="status-chips"></div></div>
+      <div class="filters">
+        <input type="text" id="f-text" placeholder="Szukaj w tytule, opisie, tagach…">
+        <select id="f-score">
+          <option value="0">Każda ocena</option>
+          <option value="5">Tylko 5</option>
+          <option value="4" selected>4 i więcej</option>
+          <option value="3">3 i więcej</option>
+        </select>
+        <select id="f-cat"><option value="">Każda kategoria</option></select>
+        <select id="f-sort">
+          <option value="score">Najlepiej ocenione</option>
+          <option value="found">Najnowsze znalezione</option>
+          <option value="updated">Ostatnio aktualizowane</option>
+          <option value="kudos">Najwięcej kudos</option>
+          <option value="words_desc">Najdłuższe</option>
+          <option value="words_asc">Najkrótsze</option>
+        </select>
+      </div>
+      <div class="filters">
+        <label class="check"><input type="checkbox" id="f-complete"> tylko ukończone</label>
+        <label class="check"><input type="checkbox" id="f-unrated"> pokaż też nieocenione</label>
+      </div>
+      <div class="count" id="count"></div>
+      <div id="list"></div>
+    </section>
+
+    <!-- wyszukiwania -->
+    <section id="tab-searches" class="hidden">
+      <div class="panel">
+        <h2>Szukaj teraz</h2>
+        <div class="sub">Prośba trafia do kolejki, a komputer z harmonogramem wykonuje ją w ciągu kilku minut. Pojedyncze wyszukiwanie odpalisz przyciskiem przy nim.</div>
+        <div class="row" style="margin-top:0">
+          <button class="btn" id="run-all">Przeszukaj wszystkie aktywne</button>
+          <button class="btn ghost" id="clear-runs">Wyczyść kolejkę</button>
+          <span class="runner-info" id="runner-info"></span>
+        </div>
+        <ul class="runs" id="runs"></ul>
+      </div>
+      <div class="panel">
+        <h2>Dodaj wyszukiwanie z linku</h2>
+        <div class="sub">Ustaw filtry na stronie wyszukiwania AO3, kliknij „Search” i wklej tutaj adres z paska przeglądarki.</div>
+        <div class="paste">
+          <input type="url" id="paste-url" placeholder="https://archiveofourown.org/works/search?work_search%5Bquery%5D=…">
+          <button class="btn" id="paste-btn">Dodaj</button>
+        </div>
+        <div class="row" style="margin-top:10px"><button class="btn ghost" id="new-search">+ Puste wyszukiwanie</button></div>
+      </div>
+      <div id="search-list"></div>
+    </section>
+
+    <!-- gust -->
+    <section id="tab-taste" class="hidden">
+      <div class="panel">
+        <h2>Profil gustu</h2>
+        <div class="sub">Na tej podstawie AI ocenia nowe fiki. Wybrane tagi dopisują się do opisu poniżej (pod „LUBI:” / „NIE LUBI:”) — AI czyta właśnie ten opis, więc możesz go dowolnie poprawiać. Zmiany działają od następnego przebiegu (już ocenione fiki zostają ze starą oceną).</div>
+
+        <div class="grid2">
+          <div class="tag-box" data-list="liked">
+            <div class="section-label" style="margin-top:0">Lubię</div>
+            <div class="picked" id="liked-tags"></div>
+            <input type="text" list="known-tags" placeholder="Dodaj tag, np. Slow Burn — Enter">
+          </div>
+          <div class="tag-box" data-list="disliked">
+            <div class="section-label" style="margin-top:0">Nie lubię</div>
+            <div class="picked" id="disliked-tags"></div>
+            <input type="text" list="known-tags" placeholder="Dodaj tag, np. Major Character Death — Enter">
+          </div>
+        </div>
+        <datalist id="known-tags"></datalist>
+
+        <div class="section-label">Najczęstsze tagi w znalezionych fikach</div>
+        <input type="text" id="tag-filter" placeholder="Filtruj tagi…" style="margin-bottom:8px">
+        <div class="suggest" id="tag-suggest"></div>
+
+        <div class="section-label">Opis swobodny</div>
+        <!-- szablon jak w 02_searches_profile.sql — pokazuje format, który rozumieją też przyciski tagów -->
+        <textarea id="taste" placeholder="LUBI:&#10;- slow burn, enemies to lovers&#10;- humor i przekomarzanie się&#10;- ukończone fiki&#10;&#10;NIE LUBI:&#10;- (uzupełnij)&#10;&#10;INNE:&#10;- (np. preferowana długość, rating)"></textarea>
+        <div class="row"><button class="btn" id="save-taste">Zapisz gust</button><span class="count" id="taste-info"></span></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="config.js"></script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const CFG = window.FICFINDER_CONFIG;
+const sb = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_PUBLISHABLE_KEY);
+const $ = (s) => document.querySelector(s);
+
+const STATUSES = [
+  ["new", "Nowe"], ["to_read", "Do przeczytania"], ["reading", "Czytam"],
+  ["read", "Przeczytane"], ["skip", "Pomiń"],
+];
+const AO3_FIELDS = ["query","title","creators","revised_at","complete","crossover","single_chapter","word_count",
+  "language_id","fandom_names","rating_ids","character_names","relationship_names","freeform_names",
+  "hits","kudos_count","comments_count","bookmarks_count","sort_column","sort_direction"];
+
+let works = [];
+let currentStatus = "new";
+
+// ---------------------------------------------------------------- pomocnicze
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const num = (n) => (n ?? 0).toLocaleString("pl-PL");
+function toast(text) {
+  const t = $("#toast"); t.textContent = text; t.classList.remove("hidden");
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.add("hidden"), 2500);
+}
+const list = (s) => s.split(",").map((x) => x.trim()).filter(Boolean);
+
+// ---------------------------------------------------------------- logowanie
+async function boot() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) showApp(); else $("#login").classList.remove("hidden");
+}
+
+$("#login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = $("#login-msg");
+  let user = $("#login-user").value.trim();
+  const pass = $("#login-pass").value;
+  if (!user.includes("@")) user = `${user}@${CFG.LOGIN_DOMAIN}`;
+
+  const { error } = pass
+    ? await sb.auth.signInWithPassword({ email: user, password: pass })
+    : await sb.auth.signInWithOtp({ email: user, options: { shouldCreateUser: false, emailRedirectTo: location.href } });
+
+  msg.classList.remove("hidden");
+  if (error) { msg.textContent = "Nie udało się: " + error.message; return; }
+  if (!pass) { msg.textContent = "Sprawdź skrzynkę — wysłaliśmy link do logowania."; return; }
+  $("#login").classList.add("hidden"); showApp();
+});
+
+$("#logout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+sb.auth.onAuthStateChange((event) => { if (event === "SIGNED_IN" && $("#app").classList.contains("hidden")) { $("#login").classList.add("hidden"); showApp(); } });
+
+async function showApp() {
+  $("#app").classList.remove("hidden");
+  await loadWorks();
+}
+
+// ---------------------------------------------------------------- zakładki
+document.querySelectorAll("nav button").forEach((b) => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("active", x === b));
+  for (const t of ["works", "searches", "taste"]) $(`#tab-${t}`).classList.toggle("hidden", t !== b.dataset.tab);
+  if (b.dataset.tab === "searches") loadSearches();
+  if (b.dataset.tab === "taste") loadTaste();
+});
+
+// ---------------------------------------------------------------- fiki
+async function loadWorks() {
+  const { data, error } = await sb.from("works").select("*").order("found_at", { ascending: false }).limit(2000);
+  if (error) { $("#list").innerHTML = `<div class="empty">Błąd: ${esc(error.message)}</div>`; return; }
+  works = data;
+  const cats = [...new Set(works.flatMap((w) => w.ai_categories || []))].sort((a, b) => a.localeCompare(b, "pl"));
+  $("#f-cat").innerHTML = `<option value="">Każda kategoria</option>` + cats.map((c) => `<option>${esc(c)}</option>`).join("");
+  render();
+}
+
+function filtered() {
+  const text = $("#f-text").value.trim().toLowerCase();
+  const minScore = +$("#f-score").value;
+  const cat = $("#f-cat").value;
+  const onlyComplete = $("#f-complete").checked;
+  const showUnrated = $("#f-unrated").checked;
+
+  return works.filter((w) => {
+    if (currentStatus !== "all" && w.status !== currentStatus) return false;
+    if (w.ai_score == null ? !showUnrated : w.ai_score < minScore) return false;
+    if (cat && !(w.ai_categories || []).includes(cat)) return false;
+    if (onlyComplete && !w.complete) return false;
+    if (text) {
+      const hay = [w.title, w.summary, ...(w.authors||[]), ...(w.freeform_tags||[]), ...(w.characters||[]), ...(w.ai_categories||[])].join(" ").toLowerCase();
+      if (!hay.includes(text)) return false;
+    }
+    return true;
+  });
+}
+
+const SORTS = {
+  score: (a, b) => (b.ai_score ?? 0) - (a.ai_score ?? 0) || b.kudos - a.kudos,
+  found: (a, b) => b.found_at.localeCompare(a.found_at),
+  updated: (a, b) => (b.updated_on || "").localeCompare(a.updated_on || ""),
+  kudos: (a, b) => b.kudos - a.kudos,
+  words_desc: (a, b) => (b.words ?? 0) - (a.words ?? 0),
+  words_asc: (a, b) => (a.words ?? 0) - (b.words ?? 0),
+};
+
+function render() {
+  // liczniki przy statusach
+  const counts = Object.fromEntries(STATUSES.map(([k]) => [k, works.filter((w) => w.status === k).length]));
+  $("#status-chips").innerHTML = [...STATUSES, ["all", "Wszystkie"]].map(([k, label]) =>
+    `<button class="chip ${k === currentStatus ? "active" : ""}" data-s="${k}">${label}<span class="n">${k === "all" ? works.length : counts[k]}</span></button>`).join("");
+  document.querySelectorAll("#status-chips .chip").forEach((c) => c.onclick = () => { currentStatus = c.dataset.s; render(); });
+
+  const items = filtered().sort(SORTS[$("#f-sort").value]);
+  $("#count").textContent = `${items.length} z ${works.length} fików`;
+  $("#list").innerHTML = items.length ? items.map(card).join("")
+    : `<div class="empty">Nic tu nie ma. Spróbuj poluzować filtry.</div>`;
+}
+
+function card(w) {
+  const chapters = `${w.chapters_current ?? "?"}/${w.chapters_total ?? "?"}`;
+  const warn = (w.warnings || []).filter((x) => !/No Archive Warnings|Chose Not To/i.test(x));
+  return `
+  <article class="card" data-id="${w.work_id}">
+    <div class="score s${w.ai_score ?? 0}" title="Ocena AI">${w.ai_score ?? "–"}</div>
+    <div>
+      <h3><a href="${esc(w.url)}" target="_blank" rel="noopener">${esc(w.title)}</a></h3>
+      <div class="meta">
+        <span>${esc((w.authors || []).join(", "))}</span>
+        <span>${esc(w.rating || "")}</span>
+        <span>${num(w.words)} słów</span>
+        <span>${chapters} rozdz.${w.complete ? " · ukończony" : " · w trakcie"}</span>
+        <span>♥ ${num(w.kudos)}</span>
+        ${w.updated_on ? `<span>akt. ${esc(w.updated_on)}</span>` : ""}
+      </div>
+      ${w.ai_reason ? `<p class="reason">${esc(w.ai_reason)}</p>` : `<p class="reason">Czeka na ocenę AI.</p>`}
+      ${(w.ai_categories || []).length ? `<div class="cats">${w.ai_categories.map((c) => `<span class="cat">${esc(c)}</span>`).join("")}</div>` : ""}
+      ${w.summary ? `<details><summary>Opis</summary><p>${esc(w.summary)}</p></details>` : ""}
+      <details><summary>Tagi (${(w.freeform_tags || []).length + warn.length})</summary>
+        <div class="tags">
+          ${warn.map((t) => `<span class="tag warn">${esc(t)}</span>`).join("")}
+          ${(w.relationships || []).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}
+          ${(w.freeform_tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}
+        </div>
+      </details>
+      <div class="status">
+        ${STATUSES.filter(([k]) => k !== "new").map(([k, label]) =>
+          `<button data-set="${k}" class="${w.status === k ? "on" : ""}">${label}</button>`).join("")}
+        <span class="dl">
+          <!-- AO3 ignoruje nazwę pliku w linku i sam podaje tytuł; pobiera przeglądarka czytelniczki -->
+          <a href="https://archiveofourown.org/downloads/${w.work_id}/${w.work_id}.epub" title="Pobierz z AO3 jako EPUB">EPUB</a>
+          <a href="https://archiveofourown.org/downloads/${w.work_id}/${w.work_id}.pdf" title="Pobierz z AO3 jako PDF">PDF</a>
+        </span>
+      </div>
+    </div>
+  </article>`;
+}
+
+$("#list").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-set]");
+  if (!btn) return;
+  const id = +btn.closest(".card").dataset.id;
+  const w = works.find((x) => x.work_id === id);
+  const next = w.status === btn.dataset.set ? "new" : btn.dataset.set; // drugie kliknięcie cofa
+  const { error } = await sb.from("works").update({ status: next }).eq("work_id", id);
+  if (error) { toast("Błąd: " + error.message); return; }
+  w.status = next;
+  toast(next === "new" ? "Cofnięto" : `Oznaczono: ${STATUSES.find(([k]) => k === next)[1]}`);
+  render();
+});
+
+["#f-text", "#f-score", "#f-cat", "#f-sort", "#f-complete", "#f-unrated"].forEach((s) => $(s).addEventListener("input", render));
+
+// ---------------------------------------------------------------- wyszukiwania
+let searches = [];
+
+async function loadSearches() {
+  const { data, error } = await sb.from("searches").select("*").order("id");
+  if (error) { $("#search-list").innerHTML = `<div class="empty">Błąd: ${esc(error.message)}</div>`; return; }
+  searches = data;
+  $("#search-list").innerHTML = searches.length ? searches.map(searchForm).join("")
+    : `<div class="empty">Brak wyszukiwań. Dodaj pierwsze z linku AO3.</div>`;
+  loadRuns();
+}
+
+// ---------------------------------------------------------------- uruchamianie ze strony
+const RUN_STATUS = { pending: "czeka", running: "trwa", done: "gotowe", error: "błąd" };
+let openRuns = 0;
+
+function ago(iso) {
+  const min = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (min < 1) return "przed chwilą";
+  if (min < 60) return `${min} min temu`;
+  if (min < 48 * 60) return `${Math.round(min / 60)} godz. temu`;
+  return new Date(iso).toLocaleString("pl-PL");
+}
+
+async function loadRuns() {
+  const [runs, runner] = await Promise.all([
+    sb.from("run_requests").select("*").order("requested_at", { ascending: false }).limit(5),
+    sb.from("runner").select("last_seen_at").eq("id", 1).maybeSingle(),
+  ]);
+  if (runs.error) { $("#runs").innerHTML = `<li>Błąd: ${esc(runs.error.message)} (czy uruchomiono sql/03_run_requests.sql?)</li>`; return; }
+
+  const seen = runner.data?.last_seen_at;
+  const alive = seen && Date.now() - new Date(seen) < 15 * 60000;
+  $("#runner-info").className = "runner-info" + (alive ? "" : " off");
+  $("#runner-info").textContent = !seen ? "Komputer jeszcze nie sprawdzał kolejki."
+    : alive ? `Komputer sprawdził kolejkę ${ago(seen)}.`
+    : `Komputer nie odpowiada od ${ago(seen).replace(" temu", "")} — prośba poczeka, aż się włączy.`;
+
+  const name = (id) => id == null ? "Wszystkie aktywne" : searches.find((s) => s.id === id)?.name ?? `Wyszukiwanie #${id}`;
+  $("#runs").innerHTML = runs.data.map((r) => `
+    <li>
+      <span class="badge ${r.status}">${RUN_STATUS[r.status]}</span>
+      <span>${esc(name(r.search_id))}</span>
+      <span class="when">zlecone ${esc(ago(r.requested_at))}${r.finished_at ? ` · zakończone ${esc(ago(r.finished_at))}` : ""}</span>
+      ${r.message ? `<span class="msg-line">${esc(r.message)}</span>` : ""}
+    </li>`).join("");
+
+  // dopóki coś czeka lub trwa, odświeżaj co 15 s; po zakończeniu przeładuj wyniki
+  const open = runs.data.filter((r) => r.status === "pending" || r.status === "running").length;
+  if (openRuns && !open) { toast("Przebieg zakończony"); loadWorks(); loadSearches(); }
+  openRuns = open;
+  clearTimeout(loadRuns.timer);
+  if (open && !$("#tab-searches").classList.contains("hidden")) loadRuns.timer = setTimeout(loadRuns, 15000);
+}
+
+async function requestRun(searchId) {
+  const { error } = await sb.from("run_requests").insert({ search_id: searchId });
+  if (error?.code === "23505") toast("To już czeka w kolejce");
+  else toast(error ? "Błąd: " + error.message : "Dodano do kolejki");
+  loadRuns();
+}
+$("#run-all").onclick = () => requestRun(null);
+$("#clear-runs").onclick = async () => {
+  if (!confirm("Usunąć oczekujące prośby i historię? Przebieg, który właśnie trwa, dokończy się.")) return;
+  const { error } = await sb.from("run_requests").delete().neq("status", "running");
+  if (error) toast("Błąd: " + error.message + " (czy uruchomiono sql/04_clear_run_requests.sql?)");
+  else toast("Wyczyszczono kolejkę");
+  openRuns = 0; // nie pokazuj „Przebieg zakończony” po samym czyszczeniu
+  loadRuns();
+};
+
+function ao3Url(params) {
+  const q = new URLSearchParams();
+  for (const f of AO3_FIELDS) q.append(`work_search[${f}]`, params[f] ?? (f === "single_chapter" ? "0" : ""));
+  q.append("commit", "Search");
+  return "https://archiveofourown.org/works/search?" + q.toString();
+}
+
+function parseAo3Url(url) {
+  const u = new URL(url);
+  if (!u.hostname.includes("archiveofourown")) throw new Error("To nie jest link z AO3");
+  const params = {};
+  for (const [k, v] of u.searchParams) {
+    const m = k.match(/^work_search\[(\w+)\](\[\])?$/);
+    if (m && v !== "" && AO3_FIELDS.includes(m[1])) params[m[1]] = m[2] ? [params[m[1]], v].filter(Boolean).join(",") : v;
+  }
+  return params;
+}
+
+const sel = (name, value, options) => `<select name="${name}">${options.map(([v, l]) =>
+  `<option value="${v}" ${String(value ?? "") === v ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+const inp = (name, value, ph = "") => `<input type="text" name="${name}" value="${esc(value ?? "")}" placeholder="${esc(ph)}">`;
+
+function searchForm(s) {
+  const p = s.params || {};
+  const last = s.last_run_at ? new Date(s.last_run_at).toLocaleString("pl-PL") : "jeszcze nie";
+  return `
+  <form class="panel search" data-id="${s.id}">
+    <div class="search-head">
+      <input type="text" name="name" value="${esc(s.name)}">
+      <label class="toggle"><input type="checkbox" name="enabled" ${s.enabled ? "checked" : ""}> aktywne</label>
+    </div>
+
+    <div class="section-label">Wyszukiwanie na AO3</div>
+    <div class="grid2">
+      <label class="field">Fraza (Any Field)${inp("query", p.query, "np. draco malfoy/Hermiona Granger")}</label>
+      <label class="field">Fandom${inp("fandom_names", p.fandom_names, "np. Harry Potter - J. K. Rowling")}</label>
+      <label class="field">Relacje${inp("relationship_names", p.relationship_names, "np. Hermione Granger/Draco Malfoy")}</label>
+      <label class="field">Postacie${inp("character_names", p.character_names)}</label>
+      <label class="field">Dodatkowe tagi${inp("freeform_names", p.freeform_names, "np. Slow Burn, Enemies to Lovers")}</label>
+      <label class="field">Liczba słów${inp("word_count", p.word_count, "np. >50000 albo 10000-80000")}</label>
+    </div>
+    <div class="grid3" style="margin-top:12px">
+      <label class="field">Język${sel("language_id", p.language_id, [["", "dowolny"], ["pl", "polski"], ["en", "angielski"]])}</label>
+      <label class="field">Rating${sel("rating_ids", p.rating_ids, [["", "dowolny"], ["10", "General"], ["11", "Teen"], ["12", "Mature"], ["13", "Explicit"], ["9", "Not Rated"]])}</label>
+      <label class="field">Ukończone${sel("complete", p.complete, [["", "wszystkie"], ["T", "tylko ukończone"], ["F", "tylko w trakcie"]])}</label>
+      <label class="field">Kudos${inp("kudos_count", p.kudos_count, "np. >100")}</label>
+      <label class="field">Sortuj po${sel("sort_column", p.sort_column, [["_score", "trafności"], ["revised_at", "dacie aktualizacji"], ["created_at", "dacie publikacji"], ["word_count", "liczbie słów"], ["kudos_count", "kudos"], ["hits", "wyświetleniach"]])}</label>
+      <label class="field">Kierunek${sel("sort_direction", p.sort_direction, [["desc", "malejąco"], ["asc", "rosnąco"]])}</label>
+    </div>
+
+    <div class="section-label">Filtr wstępny (zanim fik trafi do AI)</div>
+    <div class="grid2">
+      <label class="field">Relacja musi zawierać<input type="text" name="relationship_must" value="${esc((s.relationship_must || []).join(", "))}" placeholder="np. draco, herm"><small>Wszystkie frazy w jednym tagu relacji. Puste = bez filtra.</small></label>
+      <label class="field">Pomiń fiki z tagiem<input type="text" name="exclude_tags" value="${esc((s.exclude_tags || []).join(", "))}" placeholder="np. Major Character Death, Ron Weasley Bashing"><small>Wystarczy fragment nazwy tagu.</small></label>
+      <label class="field">Stron na jeden przebieg<input type="number" name="max_pages_per_run" min="1" max="50" value="${s.max_pages_per_run}"><small>20 fików na stronę. Więcej = dłużej i większe ryzyko blokady.</small></label>
+    </div>
+
+    <div class="state">
+      Ostatni przebieg: ${esc(last)} · następna strona: ${s.last_page + 1}${s.total_found != null ? ` · wyników na AO3: ${num(s.total_found)}` : ""}
+      ${s.last_error ? `<br><span class="err">Błąd: ${esc(s.last_error)}</span>` : ""}
+    </div>
+
+    <div class="row">
+      <button class="btn" type="submit">Zapisz</button>
+      <button class="btn ghost" type="button" data-act="run">Szukaj teraz</button>
+      <a class="btn ghost" href="${esc(ao3Url(p))}" target="_blank" rel="noopener" style="text-decoration:none">Podgląd na AO3</a>
+      <button class="btn ghost" type="button" data-act="reset">Zacznij od strony 1</button>
+      <button class="btn danger" type="button" data-act="delete">Usuń</button>
+    </div>
+  </form>`;
+}
+
+function readForm(form) {
+  const fd = new FormData(form);
+  const params = {};
+  for (const f of AO3_FIELDS) { const v = (fd.get(f) ?? "").toString().trim(); if (v) params[f] = v; }
+  return {
+    name: fd.get("name").trim() || "Bez nazwy",
+    enabled: fd.get("enabled") === "on",
+    params,
+    relationship_must: list(fd.get("relationship_must") || ""),
+    exclude_tags: list(fd.get("exclude_tags") || ""),
+    max_pages_per_run: Math.min(50, Math.max(1, +fd.get("max_pages_per_run") || 5)),
+  };
+}
+
+$("#search-list").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const { error } = await sb.from("searches").update(readForm(form)).eq("id", +form.dataset.id);
+  toast(error ? "Błąd: " + error.message : "Zapisano — zadziała przy następnym przebiegu");
+  if (!error) loadSearches();
+});
+
+$("#search-list").addEventListener("click", async (e) => {
+  const act = e.target.dataset.act;
+  if (!act) return;
+  const id = +e.target.closest("form").dataset.id;
+  if (act === "run") { requestRun(id); return; } // bez przeładowania — nie gubimy niezapisanych zmian
+  if (act === "delete") {
+    if (!confirm("Usunąć to wyszukiwanie? Znalezione fiki zostaną.")) return;
+    const { error } = await sb.from("searches").delete().eq("id", id);
+    toast(error ? "Błąd: " + error.message : "Usunięto");
+  } else if (act === "reset") {
+    const { error } = await sb.from("searches").update({ last_page: 0 }).eq("id", id);
+    toast(error ? "Błąd: " + error.message : "Następny przebieg zacznie od strony 1");
+  }
+  loadSearches();
+});
+
+async function addSearch(params, name) {
+  const { error } = await sb.from("searches").insert({ name, params,
+    relationship_must: [], exclude_tags: [], max_pages_per_run: 5 });
+  toast(error ? "Błąd: " + error.message : "Dodano wyszukiwanie");
+  if (!error) loadSearches();
+}
+
+$("#paste-btn").onclick = () => {
+  try {
+    const params = parseAo3Url($("#paste-url").value.trim());
+    const name = params.query || params.relationship_names || params.freeform_names || "Nowe wyszukiwanie";
+    addSearch(params, name.slice(0, 60));
+    $("#paste-url").value = "";
+  } catch (err) { toast(err.message || "Nieprawidłowy link"); }
+};
+$("#new-search").onclick = () => addSearch({ language_id: "pl", sort_column: "revised_at", sort_direction: "desc" }, "Nowe wyszukiwanie");
+
+// ---------------------------------------------------------------- gust
+const tasteTags = { liked: [], disliked: [] };
+const same = (a, b) => a.toLowerCase() === b.toLowerCase();
+
+async function loadTaste() {
+  const { data, error } = await sb.from("profile").select("*").eq("id", 1).single();
+  if (error) { toast("Błąd: " + error.message); return; }
+  $("#taste").value = data.taste;
+  tasteTags.liked = data.liked_tags ?? [];
+  tasteTags.disliked = data.disliked_tags ?? [];
+  if (!("liked_tags" in data)) toast("Uruchom sql/05_taste_tags.sql, żeby zapisywać tagi");
+  $("#taste-info").textContent = "Ostatnia zmiana: " + new Date(data.updated_at).toLocaleString("pl-PL");
+  renderTasteTags();
+}
+
+// tagi ze znalezionych fików, od najczęstszych — podpowiedzi i lista do klikania
+function knownTags() {
+  const counts = new Map();
+  for (const w of works)
+    for (const t of [...(w.freeform_tags || []), ...(w.relationships || []), ...(w.characters || []), ...(w.warnings || [])])
+      counts.set(t, (counts.get(t) || 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pl"));
+}
+
+function renderTasteTags() {
+  for (const kind of ["liked", "disliked"]) {
+    const list = tasteTags[kind];
+    $(`#${kind}-tags`).innerHTML = list.length
+      ? list.map((t, i) => `<span class="pick ${kind}">${esc(t)}<button data-kind="${kind}" data-i="${i}" title="Usuń">×</button></span>`).join("")
+      : `<span class="empty-note">Brak — dodaj poniżej albo z listy najczęstszych.</span>`;
+  }
+  const all = knownTags();
+  $("#known-tags").innerHTML = all.map(([t]) => `<option value="${esc(t)}">`).join("");
+
+  const filter = $("#tag-filter").value.trim().toLowerCase();
+  const chosen = [...tasteTags.liked, ...tasteTags.disliked];
+  const sug = all.filter(([t]) => !chosen.some((c) => same(c, t)) && (!filter || t.toLowerCase().includes(filter))).slice(0, 80);
+  $("#tag-suggest").innerHTML = sug.length
+    ? sug.map(([t, n]) => `<span class="sug"><span>${esc(t)}</span><span class="n">${n}</span>` +
+        `<button class="like" data-tag="${esc(t)}" data-kind="liked" title="Lubię">♥</button>` +
+        `<button class="dislike" data-tag="${esc(t)}" data-kind="disliked" title="Nie lubię">✕</button></span>`).join("")
+    : `<span class="count">${works.length ? "Brak tagów pasujących do filtra." : "Brak fików w bazie — tagi pojawią się po pierwszym przebiegu."}</span>`;
+}
+
+// tagi są też dopisywane do opisu swobodnego jako „- tag” pod nagłówkiem LUBI: / NIE LUBI:
+// — opis to pełna wersja gustu, którą czyta AI i którą można dalej ręcznie poprawiać
+const HEADINGS = { liked: "LUBI:", disliked: "NIE LUBI:" };
+const isHeading = (line) => /^\s*[A-ZĄĆĘŁŃÓŚŹŻ][A-ZĄĆĘŁŃÓŚŹŻ ]*:\s*$/.test(line);
+
+// [początek, koniec) linii sekcji pod nagłówkiem, bez samego nagłówka; null gdy brak nagłówka
+function sectionRange(lines, kind) {
+  const start = lines.findIndex((l) => l.trim().toUpperCase() === HEADINGS[kind]);
+  if (start < 0) return null;
+  let end = start + 1;
+  while (end < lines.length && !isHeading(lines[end])) end++;
+  return [start + 1, end];
+}
+
+const tagLine = (line, tag) => same(line.replace(/^\s*-\s*/, "").trim(), tag) && /^\s*-/.test(line);
+
+function syncTasteText(kind, tag, add) {
+  const lines = $("#taste").value.split("\n");
+  let range = sectionRange(lines, kind);
+  if (!range) {
+    if (!add) return;
+    while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+    if (lines.length) lines.push("");
+    lines.push(HEADINGS[kind]);
+    range = [lines.length, lines.length];
+  }
+  const [from, to] = range;
+  const section = lines.slice(from, to);
+  if (add) {
+    if (section.some((l) => tagLine(l, tag))) return;
+    // szablonowe „- (uzupełnij)” znika przy pierwszym prawdziwym tagu
+    const kept = section.filter((l) => !/^\s*-\s*\(.*\)\s*$/.test(l));
+    let last = kept.length;
+    while (last > 0 && !kept[last - 1].trim()) last--; // wstaw przed pustymi liniami na końcu sekcji
+    kept.splice(last, 0, `- ${tag}`);
+    lines.splice(from, to - from, ...kept);
+  } else {
+    lines.splice(from, to - from, ...section.filter((l) => !tagLine(l, tag)));
+  }
+  $("#taste").value = lines.join("\n");
+}
+
+function addTasteTag(kind, tag) {
+  tag = tag.trim();
+  if (!tag) return;
+  const other = kind === "liked" ? "disliked" : "liked";
+  if (tasteTags[other].some((t) => same(t, tag))) { // tag może być tylko na jednej liście
+    tasteTags[other] = tasteTags[other].filter((t) => !same(t, tag));
+    syncTasteText(other, tag, false);
+  }
+  if (!tasteTags[kind].some((t) => same(t, tag))) tasteTags[kind].push(tag);
+  syncTasteText(kind, tag, true);
+  renderTasteTags();
+}
+
+document.querySelectorAll(".tag-box input").forEach((input) => input.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  addTasteTag(input.closest(".tag-box").dataset.list, input.value);
+  input.value = "";
+}));
+document.querySelectorAll(".tag-box .picked").forEach((box) => box.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-i]");
+  if (!b) return;
+  const [tag] = tasteTags[b.dataset.kind].splice(+b.dataset.i, 1);
+  syncTasteText(b.dataset.kind, tag, false);
+  renderTasteTags();
+}));
+$("#tag-suggest").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-tag]");
+  if (b) addTasteTag(b.dataset.kind, b.dataset.tag);
+});
+$("#tag-filter").addEventListener("input", renderTasteTags);
+
+$("#save-taste").onclick = async () => {
+  const { error } = await sb.from("profile").update({
+    taste: $("#taste").value, liked_tags: tasteTags.liked, disliked_tags: tasteTags.disliked,
+  }).eq("id", 1);
+  toast(error ? "Błąd: " + error.message : "Zapisano gust");
+  if (!error) loadTaste();
+};
+
+boot();
+</script>
+</body>
+</html>

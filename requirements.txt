@@ -1,0 +1,5 @@
+requests>=2.31
+beautifulsoup4>=4.12
+anthropic>=0.40
+# AO3 (Cloudflare) wpuszcza tylko prawdziwego Chrome'a z oknem — patrz AO3Client w scraper/ao3.py
+playwright>=1.40
