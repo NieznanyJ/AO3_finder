@@ -171,6 +171,8 @@ Powód (sprawdzone 2026-10-18): Cloudflare przed AO3 zwraca 525/503 dla `request
 Node.js i Chrome headless — przepuszcza tylko Chrome z oknem. Chrome startuje przy pierwszym `get()`,
 zamyka się po `scrape()` (`with AO3Client(...)`). Wymaga zalogowanego użytkownika Windows (okno).
 Nie wracaj do `requests` / headless bez ponownego sprawdzenia, czy AO3 je wpuszcza.
+GitHub Actions też odpadają (test 2026-10-18): z runnera (IP Azure, USA) nawet Chrome z oknem na `xvfb-run`
+dostaje 525 — Cloudflare odcina adresy serwerowni. Scrapowanie działa tylko z domowego łącza.
 - odstęp między zapytaniami `AO3_DELAY_SECONDS` (domyślnie 6 s, **nie schodzić poniżej 5**),
 - 429 → czekaj `Retry-After` (maks. 300 s), do 3 prób,
 - 403/503 lub „Just a moment” (Cloudflare) → wyjątek `AO3Blocked`; `main.py` przerywa cały przebieg
