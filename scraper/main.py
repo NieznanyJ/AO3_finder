@@ -3,8 +3,8 @@
 Użycie:
   python scraper/main.py scrape            # przejdź zapisane wyszukiwania
   python scraper/main.py rate              # oceń nowe fiki przez Claude'a
-  python scraper/main.py all               # jedno i drugie (tak odpala GitHub Actions)
-  python scraper/main.py queue             # wykonaj prośby ze strony + codzienny przebieg
+  python scraper/main.py all               # jedno i drugie
+  python scraper/main.py queue             # wykonaj prośby kliknięte na stronie
                                            #   (Harmonogram zadań Windows, co 5 minut)
   python scraper/main.py parse plik.html   # test parsera na zapisanej stronie, bez bazy i sieci
 """
@@ -14,7 +14,7 @@ import json
 import math
 import os
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -170,28 +170,23 @@ def rate(progress=_no_progress) -> int:
 
 def queue():
     """Jedno sprawdzenie kolejki. Odpalane co kilka minut przez Harmonogram zadań —
-    gdy nic nie czeka i nie pora na codzienny przebieg, kończy się bez pytania AO3."""
+    AO3 przeszukuje tylko na prośbę ze strony; gdy nic nie czeka, kończy się bez pytania AO3."""
     from db import now_iso
 
     db = get_db()
     db.update_runner(last_seen_at=now_iso())  # strona pokazuje, że komputer żyje
     db.fail_stale_requests((datetime.now(timezone.utc) - timedelta(hours=2)).isoformat())
 
-    daily_hour = env("QUEUE_DAILY_HOUR", "8").strip()
-    today = date.today().isoformat()
-    daily_due = (daily_hour != "" and datetime.now().hour >= int(daily_hour)
-                 and db.runner().get("last_daily_run_on") != today)
     requests_ = db.claim_requests()
-
-    if not requests_ and not daily_due:
+    if not requests_:
         print("Kolejka pusta.")
         return
 
     ids = [r["id"] for r in requests_]
-    # prośba „wszystkie” (search_id = null) albo codzienny przebieg → wszystkie aktywne
-    run_all = daily_due or any(r["search_id"] is None for r in requests_)
+    # prośba „wszystkie” (search_id = null) → wszystkie aktywne
+    run_all = any(r["search_id"] is None for r in requests_)
     search_ids = None if run_all else sorted({r["search_id"] for r in requests_})
-    print(f"Prośby ze strony: {len(ids)}, codzienny przebieg: {'tak' if daily_due else 'nie'}")
+    print(f"Prośby ze strony: {len(ids)}")
 
     try:
         def progress(message: str, percent: int | None = None):
@@ -210,8 +205,6 @@ def queue():
     except Exception as e:  # noqa: BLE001
         db.finish_requests(ids, "error", str(e))
         raise
-    if daily_due:
-        db.update_runner(last_daily_run_on=today)
 
     message = f"Nowych fików: {result['new']}, ocenionych: {rated}"
     if result["errors"]:

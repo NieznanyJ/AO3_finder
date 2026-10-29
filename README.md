@@ -1,6 +1,6 @@
 # Półka z fikami — AO3 Fic Finder
 
-Codziennie przeszukuje AO3 według zapisanych wyszukiwań, odrzuca niepasujące fiki,
+Na żądanie (przycisk „Szukaj teraz” albo ręczne odpalenie) przeszukuje AO3 według zapisanych wyszukiwań, odrzuca niepasujące fiki,
 ocenia nowe przez Claude'a (1–5) pod gust czytelniczki i pokazuje wszystko na prywatnej stronie.
 
 ```
@@ -19,8 +19,8 @@ scraper/main.py queue ──────────────▶  works, sear
 | `scraper/ao3.py` | Budowa URL-a, pobieranie z przerwami i obsługą 429, parsowanie, filtr wstępny |
 | `scraper/db.py` | Zapis do Supabase (REST, bez dodatkowych bibliotek) |
 | `scraper/rate.py` | Ocena paczek po 10 fików przez Claude API |
-| `scraper/main.py` | Punkt wejścia: `scrape`, `rate`, `all`, `parse plik.html` |
-| `.github/workflows/scrape.yml` | Harmonogram (codziennie ok. 8:17) + ręczne uruchomienie |
+| `scraper/main.py` | Punkt wejścia: `scrape`, `rate`, `all`, `queue`, `parse plik.html` |
+| `.github/workflows/scrape.yml` | Ręczne przeliczenie ocen AI (bez scrapowania) |
 | `docs/index.html`, `docs/config.js` | Strona na GitHub Pages |
 | `tests/fixture_search.html` | Zapisana strona wyników AO3 do testów parsera |
 
@@ -47,7 +47,7 @@ python scraper/main.py rate     # oceni je przez Claude'a
 1. Załóż repo i wypchnij ten folder (`.env` jest w `.gitignore` — nie trafi do repo).
 2. **Settings → Secrets and variables → Actions → New repository secret**, dodaj trzy:
    `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`.
-3. **Actions → AO3 scrape & rate → Run workflow**, żeby sprawdzić, czy działa z serwerów GitHuba.
+3. **Actions → AO3 rate → Run workflow**, żeby sprawdzić ocenę AI z serwerów GitHuba.
 
 ### 4. Strona
 1. Uzupełnij `docs/config.js`: Project URL i klucz **publishable/anon** (nie secret!).
@@ -59,8 +59,7 @@ python scraper/main.py rate     # oceni je przez Claude'a
 1. W Supabase → SQL Editor uruchom `sql/03_run_requests.sql`.
 2. Harmonogram zadań Windows: co 5 minut `.venv\Scripts\python.exe scraper\main.py queue`
    (katalog startowy = folder repo, „nie uruchamiaj nowego wystąpienia”).
-   Komenda wykonuje prośby kliknięte na stronie i raz dziennie (od `QUEUE_DAILY_HOUR`, domyślnie 8:00)
-   robi pełny przebieg.
+   Komenda wykonuje tylko prośby kliknięte na stronie — sama z siebie AO3 nie przeszukuje.
 
 ## Uwagi
 

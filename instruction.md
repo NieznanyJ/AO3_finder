@@ -9,7 +9,8 @@ i jak wdrażać kolejne kroki. Czytaj ją w całości przed zmianami w kodzie.
 
 Automatyczne wyszukiwanie fanfików na AO3 (archiveofourown.org) dla jednej czytelniczki (żony autora repo):
 
-1. Zapisane wyszukiwania AO3 są codziennie przeglądane strona po stronie.
+1. Zapisane wyszukiwania AO3 są przeglądane strona po stronie — **tylko na żądanie** (przycisk „Szukaj teraz”
+   na stronie albo ręczne `main.py scrape/all`). Żadnego automatycznego przebiegu (decyzja użytkownika 2026-10-29).
 2. Fiki niepasujące (np. inna relacja, wykluczone tagi) są odrzucane bez AI.
 3. Nowe fiki trafiają do bazy (bez duplikatów, klucz = ID z AO3).
 4. Claude ocenia każdy nowy fik w skali 1–5 pod jej gust i nadaje kategorie.
@@ -132,7 +133,8 @@ Unikalny indeks częściowy: najwyżej jedna prośba `pending`/`running` na wysz
 kolejne kliknięcie dostaje błąd `23505`, strona pokazuje „już czeka w kolejce”.
 
 ### `runner` — stan komputera obsługującego kolejkę (jeden wiersz, `id = 1`, z 03)
-`last_seen_at` (każde `main.py queue`), `last_daily_run_on` (dzień ostatniego automatycznego pełnego przebiegu).
+`last_seen_at` (każde `main.py queue`). Kolumna `last_daily_run_on` została po usuniętym codziennym przebiegu
+— nieużywana.
 
 ### `allowed_users`
 `email` PK. Funkcja `is_allowed()` (security definer) porównuje z `auth.jwt() ->> 'email'`.
@@ -228,11 +230,10 @@ Na fixture z `{draco, herm}` odrzuca 4 z 20 (Draco/Harry + Connor/Parvati, James
   (ustawienie „nie uruchamiaj nowego wystąpienia”, więc przebiegi się nie nakładają):
   1. `runner.last_seen_at = now` (strona pokazuje, czy komputer żyje), prośby `running` starsze niż 2 h → `error`.
   2. Przejmuje wszystkie `pending` (PATCH → `running`).
-  3. Codzienny przebieg: jeśli godzina ≥ `QUEUE_DAILY_HOUR` i `last_daily_run_on` ≠ dziś → przebieg jak `all`.
-     Dzień jest oznaczany także przy błędach AO3, żeby nie pukać do AO3 co 5 minut.
-  4. Nic do zrobienia → koniec bez zapytań do AO3. Prośba „wszystkie” albo codzienny przebieg → wszystkie
-     aktywne; inaczej tylko zamówione wyszukiwania (także wyłączone). Potem `rate()`.
-  5. Prośby → `done` z „Nowych fików: N, ocenionych: M” albo `error` z błędami wyszukiwań.
+  3. Brak próśb → koniec bez zapytań do AO3 (**nie ma automatycznego codziennego przebiegu** — scraper
+     rusza AO3 tylko na prośbę). Prośba „wszystkie” → wszystkie aktywne; inaczej tylko zamówione
+     wyszukiwania (także wyłączone). Potem `rate()`.
+  4. Prośby → `done` z „Nowych fików: N, ocenionych: M” albo `error` z błędami wyszukiwań.
   W trakcie `progress(message, percent)` → `db.progress_requests()` zapisuje w prośbach `message` (co się dzieje)
   i `progress` 0–100 (start 0–5, wyszukiwanie 5–70 proporcjonalnie do stron, ocena AI 70–100). Bez kolumny
   `progress` (przed 06) zapisuje sam tekst; błąd zapisu postępu nigdy nie przerywa przebiegu.
@@ -294,7 +295,6 @@ Na fixture z `{draco, herm}` odrzuca 4 z 20 (Draco/Harry + Connor/Parvati, James
 | `AI_MODEL` | .env / Variable | nie | `claude-haiku-5-5` |
 | `AI_BATCH_SIZE` | .env | nie | `10` |
 | `AI_MAX_PER_RUN` | .env | nie | `100` |
-| `QUEUE_DAILY_HOUR` | .env | nie | `8` (godzina codziennego przebiegu w `queue`; puste = wyłączony) |
 
 `docs/config.js`: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (publishable/anon — **nigdy secret**), `LOGIN_DOMAIN`.
 
@@ -336,11 +336,11 @@ Status na 2026-10-18. Przy każdym kroku: wykonaj, sprawdź kryterium, dopiero p
 - [ ] Actions → „AO3 rate” → Run workflow (tylko ocena AI).
   - Kryterium: zielony przebieg.
   - Scrapowanie robi wyłącznie komputer: Harmonogram zadań → `main.py queue` co 5 minut (Etap 5b),
-    razem z codziennym przebiegiem.
+    tylko na prośby ze strony.
 
 ### Etap 5b — „Szukaj teraz” ze strony ⏳
 - [ ] Uruchomić `sql/03_run_requests.sql` w SQL Editor.
-- [ ] `python scraper/main.py queue` ręcznie → „Kolejka pusta.” albo codzienny przebieg; w `runner` jest `last_seen_at`.
+- [ ] `python scraper/main.py queue` ręcznie → „Kolejka pusta.” (albo wykonanie czekających próśb); w `runner` jest `last_seen_at`.
 - [ ] Harmonogram zadań → Utwórz zadanie: wyzwalacz codziennie, powtarzaj co 5 min przez 1 dzień;
   akcja `<repo>\.venv\Scripts\python.exe` z argumentem `scraper\main.py queue`, „Rozpocznij w” = `<repo>`;
   ustawienia: „uruchom jak najszybciej po pominięciu”, „nie uruchamiaj nowego wystąpienia”;

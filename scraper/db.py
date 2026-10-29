@@ -68,10 +68,6 @@ class Supabase:
                   json={"status": "error", "message": "Przebieg przerwany (komputer wyłączony?)",
                         "finished_at": now_iso()})
 
-    def runner(self) -> dict:
-        rows = self._req("GET", "runner", params={"id": "eq.1"})
-        return rows[0] if rows else {}
-
     def update_runner(self, **fields):
         self._req("PATCH", "runner", params={"id": "eq.1"}, json=fields)
 
